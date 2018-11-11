@@ -93,45 +93,53 @@ def ddpg(continuing=False, n_episodes=1000, max_t=3000, print_every=100):
 
 def test(n_episodes=300, max_t=1000, print_every=100):
 
-    agent.actor_local.load_state_dict(torch.load('checkpoint_actor.pth'))
-    agent.critic_local.load_state_dict(torch.load('checkpoint_critic.pth'))
+    for i in range(len(agents.agents)):
+        agents.agents[i].actor_local.load_state_dict(torch.load('checkpoint_actor' + str(i) + '.pth'))
+        agents.agents[i].critic_local.load_state_dict(torch.load('checkpoint_critic' + str(i) + '.pth'))
 
     scores_deque = deque(maxlen=print_every)
-    scores = []
+    all_scores = []
 
     for i_episode in range(1, n_episodes+1):
         env_info = env.reset(train_mode=False)[brain_name]  
-        state = env_info.vector_observations
-        agent.reset()
-        score = 0
+        states = env_info.vector_observations
+        agents.reset()
+
+        scores = []
+
+        for i in range(len(agents.agents)):
+            scores.append(0)
 
         for t in range(max_t):
-            action = agent.act(state)
+            actions = agents.act(states)
 
-            env_info = env.step(action)[brain_name]
-            next_state = env_info.vector_observations
-            reward = env_info.rewards[0]
+            env_info = env.step(actions)[brain_name]
+            next_states = env_info.vector_observations
+            rewards = env_info.rewards
             done = env_info.local_done[0]
 
-            state = next_state
-            score += reward
+            states = next_states
+            for i in range(len(agents.agents)):
+                scores[i] += rewards[i]
 
             if done:
                 break
 
-        scores_deque.append(score)
-        scores.append(score)
+        scores_deque.append(max(scores))
+        all_scores.append(max(scores))
 
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)), end="")
+
         if i_episode % print_every == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
             
-    return scores
+            
+    return all_scores
 
 
 
-scores = ddpg(continuing=False, n_episodes=3000)
-#scores = test(n_episodes=3)
+#scores = ddpg(continuing=False, n_episodes=3000)
+scores = test(n_episodes=3)
 
 
 fig = plt.figure()
